@@ -1,0 +1,15 @@
+@media only screen and (max-width:  991){
+    scrollable {
+        overflow-y : scroll;
+        position: absolute;
+        top: 50%;
+        height: 50%;
+    }
+}
+@media only screen and (min-width:  992){
+    scrollable {
+        overflow-y : scroll;
+        position: absolute;
+        left: 50%;
+    }
+}

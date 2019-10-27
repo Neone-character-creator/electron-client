@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Login/Register</title>
+</head>
+<body>
+<div class="container-fluid">
+    <div class="row">
+        Please Login
+    </div>
+    <form th:action="@{/login}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="input-group">
+            <div class="row">
+                <div class="row">
+                    <input type="text" class="form-control" placeholder="Username" name="username"/>
+                </div>
+                <div class="row">
+                    <input type="password" class="form-control" placeholder="Password" name="password"/>
+                </div>
+                <div class="row">
+                    <input type="submit" value="Login"/>
+                </div>
+                <div class="row" th:if="${param.error != null}">
+                    The email and password were incorrect.
+                </div>
+            </div>
+        </div>
+    </form>
+    <div class="row">
+        Need an account? Create one here.
+    </div>
+    <form th:action="@{/createuser}" method="post" th:object="${user}">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="row">
+            <input type="text" class="form-control" placeholder="Email" name="username" th:field="*{username}"/>
+        </div>
+        <div class="row">
+            <input type="password" class="form-control" placeholder="Password" name="password" th:field="*{password}"/>
+        </div>
+        <div class="row">
+            <input type="password" class="form-control" placeholder="Repeat Password" name="confirmpassword"/>
+        </div>
+        <div class="row">
+            <input type="submit" value="Create Account"/>
+        </div>
+        <div class="row" th:if="${error_message != null}">
+            <span th:text="${error_message}"></span>
+        </div>
+    </form>
+</div>
+</body>
+</html>
