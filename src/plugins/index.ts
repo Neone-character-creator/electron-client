@@ -52,6 +52,7 @@ export default class Plugins {
      * @return promise of array of PluginDescriptions of all downloaded plugins
      */
     async updateLocalPluginCache(): Promise<Array<any>> {
+        console.info("Refreshing plugin cache from remote at " + this.defaultRemoteUrl);
         const remotePlugins = await this.getRemotePluginDescriptions();
         const differenceBetweenRemoteAndLocal:Array<PluginDescription> = _.difference(remotePlugins, Array.from(await this.localPluginDescriptionCache.values()));
         if(differenceBetweenRemoteAndLocal.length) {
@@ -60,13 +61,15 @@ export default class Plugins {
                     const author = plugin.author;
                     const system = plugin.system;
                     const version = plugin.version;
-                    const response = await this.downloadClient.get(`/plugins/${author}/${system}/${version}/`);
+                    console.info(`Downloading remote plugin ${author} ${system} ${version}`);
+                    const response = await this.downloadClient.get(this.defaultRemoteUrl + `${author}/${system}/${version}/`);
                     const targetFileName = path.resolve(this.pluginDir, `${author}-${system}-${version}.jar`);
                     fs.writeFile(targetFileName, response.data, err =>{
                         if(err) console.error(err);
+                        console.info(`Download ${author} ${system} ${version} finished`);
                     });
                 } catch (e) {
-                    console.error(e);
+                    console.error("Failed to refresh plugin cache", e);
                 }
             })
         }
