@@ -45,7 +45,7 @@ const createWindow = () => {
     // when you should delete the corresponding element.
     mainWindow = null;
   });
-  ipcMain.on("plugin-list", async () => {
+  mainWindow.webContents.on("dom-ready", async () => {
     let remotePlugins = await plugins.getRemotePluginDescriptions();
     mainWindow.webContents.send("plugin-list", remotePlugins);
   });
