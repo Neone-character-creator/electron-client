@@ -6,6 +6,12 @@ const axios = require("axios");
 const Plugins = require("./plugins").default;
 const url = require("url");
 const Store = require("electron-store");
+const GoogleOAuth2 = require("@getstation/electron-google-oauth2").default;
+const googleOauthClient = new GoogleOAuth2(
+    config.auth.google.clientId,
+    config.auth.google.clientSecret,
+    []
+);
 
 const Data = require("./data").default;
 const data = new Data(new Store());
@@ -88,6 +94,16 @@ const createWindow = () => {
         console.info("loading character with id " + idToLoad);
         const existingCharacter = data.getCharacter(idToLoad);
         mainWindow.webContents.send("character-loaded", existingCharacter);
+    });
+
+    ipcMain.on("start-login", async (e, provider)=>{
+        googleOauthClient.openAuthWindowAndGetTokens().then(token =>{
+            mainWindow.webContents.send("get-is-authenticated-status", true);
+            console.log(token);
+        });
+    });
+    ipcMain.on("start-logout", async e => {
+        mainWindow.webContents.send("get-is-authenticated-status", true);
     });
 };
 

@@ -10,7 +10,7 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "echo \"No linting configured\"",
-    "compile": "tsc --skipLibCheck",
+    "compile": "tsc --skipLibCheck --importHelpers",
     "test": "jest"
   },
   "keywords": [],
@@ -47,6 +47,7 @@
     }
   },
   "dependencies": {
+    "@getstation/electron-google-oauth2": "^2.0.0",
     "@types/electron-store": "^3.2.0",
     "@types/lodash": "^4.14.144",
     "@types/mongodb": "^3.3.7",
