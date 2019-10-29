@@ -6,9 +6,9 @@ const axios = require("axios");
 const Plugins = require("./plugins").default;
 const url = require("url");
 const Store = require("electron-store");
-const {ObjectId} = require("mongodb");
-const store = new Store();
-store.set("characters", {});
+
+const Data = require("./data").default;
+const data = new Data(new Store());
 
 const plugins = new Plugins('.', axios, config.api.url + config.api.pluginPath);
 
@@ -74,13 +74,20 @@ const createWindow = () => {
     });
 
     ipcMain.on("save-character", async (e, characterData) => {
-        const existingCharacters = store.get("characters");
-        console.log(characterData.id ? "data has existing id" : "data has no existing id");
-        let id = characterData.id || new ObjectId();
-        characterData.id = id.toString();
-        existingCharacters[id] = characterData;
-        store.set("character", existingCharacters);
-        mainWindow.webContents.send("character-saved", JSON.stringify(characterData));
+        console.info(`Saving character to local with id ${characterData.id}`);
+        const postSaveCharacter = data.saveCharacter(characterData);
+        mainWindow.webContents.send("character-saved", JSON.stringify(postSaveCharacter));
+    });
+
+    ipcMain.on("get-character-list", async ()=>{
+        const mappedList = data.getAllCharacters();
+        mainWindow.webContents.send("get-character-list", mappedList);
+    });
+
+    ipcMain.on("load-character", async (e, idToLoad) => {
+        console.info("loading character with id " + idToLoad);
+        const existingCharacter = data.getCharacter(idToLoad);
+        mainWindow.webContents.send("character-loaded", existingCharacter);
     });
 };
 
