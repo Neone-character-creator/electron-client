@@ -1,9 +1,10 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol } = require('electron');
 const path = require("path");
 const loadConfig = require("./loadConfig");
 const config = loadConfig(process.env.NODE_ENV);
 const axios = require("axios");
 const Plugins = require("./plugins").default;
+const url = require("url");
 
 const plugins = new Plugins('.', axios, config.api.url + config.api.pluginPath);
 
@@ -17,6 +18,7 @@ if (require('electron-squirrel-startup')) { // eslint-disable-line global-requir
 let mainWindow;
 
 const createWindow = () => {
+  let activePlugin;
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 800,
@@ -45,16 +47,31 @@ const createWindow = () => {
     // when you should delete the corresponding element.
     mainWindow = null;
   });
-  mainWindow.webContents.on("dom-ready", async () => {
+  ipcMain.on("plugin-list", async () => {
     let remotePlugins = await plugins.getRemotePluginDescriptions();
     mainWindow.webContents.send("plugin-list", remotePlugins);
+  });
+
+  ipcMain.on("load-plugin", async (event, plugin) => {
+    activePlugin = plugin;
+    mainWindow.loadURL(path.join(__dirname, "..", "static", "templates", "plugin-character-page.html"));
+  });
+  ipcMain.on("get-plugin-info", async () => {
+    const pluginConfiguration = await plugins.getPluginConfiguration(activePlugin);
+    const rawPath = await plugins.getPluginResource(activePlugin, pluginConfiguration.resources.character);
+    const pluginCharacterTemplateFileName = url.pathToFileURL(rawPath);
+    mainWindow.webContents.send("get-plugin-info", activePlugin,
+        pluginCharacterTemplateFileName.toString()
+    );
   });
 };
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow);
+app.on('ready', () =>{
+  createWindow();
+});
 
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {
