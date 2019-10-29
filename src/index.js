@@ -6,6 +6,7 @@ const bridge = {
     on: (id, callback) => {
         if (listeners[id]) {
             console.warn("Replacing listener with id " + id);
+            ipcRenderer.removeListener(id, callback);
         }
         listeners[id] = callback;
         ipcRenderer.on(id, callback);
@@ -13,22 +14,3 @@ const bridge = {
 };
 
 window.bridge = bridge;
-
-function hideList(){
-    availablePlugins.hide();
-}
-
-let availablePlugins;
-window.bridge.on("plugin-list", (event, list) => {
-    availablePlugins = $("#available-plugins");
-    list.forEach(ap => {
-        console.log(ap);
-        const newElement = $("<li>");
-        newElement.text(ap.system + " " + ap.version);
-        newElement.on("click", function(){
-            hideList();
-        });
-        availablePlugins.append(newElement);
-    });
-    $("#spinner").hide();
-});
