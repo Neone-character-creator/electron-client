@@ -4,13 +4,6 @@
       xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
 <head>
     <meta charset="UTF-8"/>
-    <meta name="_csrf" th:content="${_csrf?.token}"/>
-    <meta name="_csrf_header" th:content="${_csrf?.headerName}"/>
-    <meta name="author" th:content="${author}"/>
-    <meta name="game" th:content="${game}"/>
-    <meta name="version" th:content="${version}"/>
-    <meta name="characterid" th:content="${wrapper.id}" th:if="${wrapper != null}"/>
-    <meta name="google-signin-client_id" th:content="${google_client_id}"/>
     <script type="text/javascript" src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
 
     <!-- Latest compiled and minified JavaScript -->
@@ -24,13 +17,14 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css"
           integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous"/>
 
-    <link rel="stylesheet" th:href="@{/css/character-page.css}"/>
-    <link rel="stylesheet" th:href="@{/css/bootstrap-social.css}"/>
+    <link rel="stylesheet" href="../css/character-page.css"/>
+    <link rel="stylesheet" href="../css/bootstrap-social.css"/>
     <script src="https://apis.google.com/js/platform.js" id="gap"></script>
 
     <title>Title</title>
 </head>
 <body>
+Some text
 <div class="container-fluid" id="character-page-container">
     <div id="login-modal" class="modal fade" role="dialog">
         <div class="modal-dialog">
@@ -127,6 +121,6 @@
     </iframe>
 </div>
 </body>
-<script src="/js/character-page.js" type="text/javascript"></script>
-<script src="/js/character-list.js" type="text/javascript"></script>
+<script src="../js/character-page.js" type="text/javascript"></script>
+<script src="../js/character-list.js" type="text/javascript"></script>
 </html>
