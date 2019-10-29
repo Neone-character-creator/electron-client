@@ -2,17 +2,18 @@ import {AxiosInstance} from "axios";
 import PluginDescription from "./PluginDescription";
 import * as _ from "lodash";
 import path from "path";
-import fs, {mkdirSync} from "fs";
+import fs from "fs";
 import StreamZip from "node-stream-zip";
 import {app} from "electron";
 
 export default class Plugins {
     static CACHE_DIRTY_SECONDS: number = 1 * 60 * 60 * 1000;
-    pluginDir: string;
-    downloadClient: AxiosInstance;
-    defaultRemoteUrl: string;
-    localPluginDescriptionCache: Map<PluginDescription, String>;
-    remotePluginDescriptionCache: Set<PluginDescription>;
+    private readonly appDataDir: string;
+    private readonly pluginDir: string;
+    private readonly downloadClient: AxiosInstance;
+    private readonly defaultRemoteUrl: string;
+    private readonly localPluginDescriptionCache: Map<PluginDescription, String>;
+    private readonly remotePluginDescriptionCache: Set<PluginDescription>;
 
     constructor(pluginDir: string, downloadClient: AxiosInstance, defaultRemoteUrl: string) {
         this.pluginDir = pluginDir;
@@ -20,6 +21,7 @@ export default class Plugins {
         this.defaultRemoteUrl = defaultRemoteUrl;
         this.remotePluginDescriptionCache = new Set<PluginDescription>();
         this.localPluginDescriptionCache = new Map<PluginDescription, String>();
+        this.appDataDir = path.join(app.getPath("appData"), "neone");
     }
 
     /**
@@ -86,18 +88,20 @@ export default class Plugins {
     }
 
     private async unpackArchive(pluginId: PluginDescription): Promise<any> {
-        const encodedArchiveId = encodeURIComponent(`${pluginId.author}-${pluginId.system}-${pluginId.version}`);
+        const encodedArchiveId = this.getEncodedPluginFilename(pluginId);
         const archivePath = path.resolve(path.join(this.pluginDir, `${encodedArchiveId}.jar`));
         console.log(`Unpacking archive for ${pluginId.author}-${pluginId.system}-${pluginId.version} at ${archivePath}`);
-        const appDataDir = path.join(app.getPath("appData"), "neone");
         return new Promise((resolve, reject) => {
-            fs.mkdir(appDataDir, '0777', (err) => {
+            fs.mkdir(this.appDataDir, '0777', (err) => {
+                if (err && err.code !== 'EEXIST') {
+                    return reject(err);
+                }
                 const archive = new StreamZip({
                     file: archivePath,
                     storeEntries: true
                 });
-                archive.on('ready', function(){
-                    const unpackDir = path.join(appDataDir, encodedArchiveId);
+                archive.on('ready', () => {
+                    const unpackDir = path.join(this.appDataDir, encodedArchiveId);
                     console.log(`Begin unpack to ${unpackDir} ${archive.entriesCount}`);
                     fs.mkdir(unpackDir, function (err) {
                         // If the directory already exists, we don't care, that's normal.
@@ -118,5 +122,30 @@ export default class Plugins {
 
             })
         });
+    }
+
+    public async getPluginResource(plugin: PluginDescription, resourcePath: string) {
+        return path.resolve(path.join(this.appDataDir, this.getEncodedPluginFilename(plugin), resourcePath));
+    }
+
+    public async getPluginConfiguration(plugin: PluginDescription) {
+        return new Promise(((resolve, reject) => {
+            const configurationPath = path.join(this.appDataDir, this.getEncodedPluginFilename(plugin), "plugin.json");
+            fs.readFile(configurationPath, {
+                encoding: "UTF-8"
+            }, function (err, data) {
+                if(err) {
+                    return reject(err)
+                }
+                resolve(JSON.parse(data));
+            })
+        }))
+    }
+
+    private getEncodedPluginFilename(plugin: PluginDescription) {
+        if(!plugin) {
+            throw new Error("plugin cannot be null or undefined");
+        }
+        return encodeURIComponent(`${plugin.author}-${plugin.system}-${plugin.version}`);
     }
 }
