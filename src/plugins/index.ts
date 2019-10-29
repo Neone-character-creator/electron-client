@@ -35,6 +35,7 @@ export default class Plugins {
      * Returns the plugin description for all remote plugin archives.
      */
     async getRemotePluginDescriptions(): Promise<Array<any>> {
+        console.info("Getting remote plugin descriptions");
         try {
             const lastUpdated = (this.remotePluginDescriptionCache as any).lastUpdateTime;
             if (!lastUpdated || (lastUpdated + Plugins.CACHE_DIRTY_SECONDS) < Date.now()) {
@@ -57,34 +58,43 @@ export default class Plugins {
      */
     async updateLocalPluginCache(): Promise<Array<any>> {
         console.info("Refreshing plugin cache from remote at " + this.defaultRemoteUrl);
-        const remotePlugins = await this.getRemotePluginDescriptions();
-        const differenceBetweenRemoteAndLocal: Array<PluginDescription> = _.difference(remotePlugins, Array.from(await this.localPluginDescriptionCache.values()));
-        if (differenceBetweenRemoteAndLocal.length) {
-            differenceBetweenRemoteAndLocal.forEach(async plugin => {
-                try {
-                    const author = plugin.author;
-                    const system = plugin.system;
-                    const version = plugin.version;
-                    console.info(`Downloading remote plugin ${author} ${system} ${version}`);
-                    const response = await this.downloadClient.get(this.defaultRemoteUrl + `${author}/${system}/${version}/`, {
-                        responseType: 'arraybuffer'
-                    });
-                    const targetFileName = path.resolve(this.pluginDir, encodeURIComponent(`${author}-${system}-${version}.jar`));
-                    const dataBuffer = Buffer.from(response.data);
-                    fs.writeFile(targetFileName, dataBuffer, err => {
-                        if (err) {
-                            console.error(err)
-                        } else {
-                            console.info(`Download ${author} ${system} ${version} finished`);
-                            this.unpackArchive(new PluginDescription(author, system, version));
-                        }
-                    });
-                } catch (e) {
-                    console.error("Failed to refresh plugin cache", e);
+        return new Promise(((resolve, reject) => {
+            fs.mkdir(this.pluginDir, {
+                recursive: true
+            }, async (err) => {
+                if (err) {
+                    return reject(err);
                 }
+                const remotePlugins = await this.getRemotePluginDescriptions();
+                const differenceBetweenRemoteAndLocal: Array<PluginDescription> = _.difference(remotePlugins, Array.from(await this.localPluginDescriptionCache.values()));
+                if (differenceBetweenRemoteAndLocal.length) {
+                    differenceBetweenRemoteAndLocal.forEach(async plugin => {
+                        try {
+                            const author = plugin.author;
+                            const system = plugin.system;
+                            const version = plugin.version;
+                            console.info(`Downloading remote plugin ${author} ${system} ${version}`);
+                            const response = await this.downloadClient.get(this.defaultRemoteUrl + `${author}/${system}/${version}/`, {
+                                responseType: 'arraybuffer'
+                            });
+                            const targetFileName = path.resolve(this.pluginDir, encodeURIComponent(`${author}-${system}-${version}.jar`));
+                            const dataBuffer = Buffer.from(response.data);
+                            fs.writeFile(targetFileName, dataBuffer, err => {
+                                if (err) {
+                                    console.error(err)
+                                } else {
+                                    console.info(`Download ${author} ${system} ${version} finished`);
+                                    this.unpackArchive(new PluginDescription(author, system, version));
+                                }
+                            });
+                        } catch (e) {
+                            console.error("Failed to refresh plugin cache", e);
+                        }
+                    })
+                }
+                return resolve(differenceBetweenRemoteAndLocal);
             })
-        }
-        return differenceBetweenRemoteAndLocal;
+        }));
     }
 
     private async unpackArchive(pluginId: PluginDescription): Promise<any> {
@@ -134,7 +144,7 @@ export default class Plugins {
             fs.readFile(configurationPath, {
                 encoding: "UTF-8"
             }, function (err, data) {
-                if(err) {
+                if (err) {
                     return reject(err)
                 }
                 resolve(JSON.parse(data));
@@ -143,7 +153,7 @@ export default class Plugins {
     }
 
     private getEncodedPluginFilename(plugin: PluginDescription) {
-        if(!plugin) {
+        if (!plugin) {
             throw new Error("plugin cannot be null or undefined");
         }
         return encodeURIComponent(`${plugin.author}-${plugin.system}-${plugin.version}`);

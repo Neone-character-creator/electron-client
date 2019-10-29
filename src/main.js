@@ -10,7 +10,7 @@ const Store = require("electron-store");
 const Data = require("./data").default;
 const data = new Data(new Store());
 
-const plugins = new Plugins('.', axios, config.api.url + config.api.pluginPath);
+const plugins = new Plugins(path.resolve(path.join(app.getPath("appData"), "neone", "plugins")), axios, config.api.url + config.api.pluginPath);
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) { // eslint-disable-line global-require
