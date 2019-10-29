@@ -10,7 +10,7 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "echo \"No linting configured\"",
-    "compile": "tsc",
+    "compile": "tsc --skipLibCheck",
     "test": "jest"
   },
   "keywords": [],
@@ -47,7 +47,9 @@
     }
   },
   "dependencies": {
+    "@types/electron-store": "^3.2.0",
     "@types/lodash": "^4.14.144",
+    "@types/mongodb": "^3.3.7",
     "axios": "^0.19.0",
     "electron-squirrel-startup": "^1.0.0",
     "electron-store": "^5.0.0",
