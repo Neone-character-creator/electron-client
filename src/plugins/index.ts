@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import StreamZip from "node-stream-zip";
 import {app} from "electron";
+import {file} from "@babel/types";
 
 export default class Plugins {
     static CACHE_DIRTY_SECONDS: number = 1 * 60 * 60 * 1000;
@@ -66,6 +67,7 @@ export default class Plugins {
                     return reject(err);
                 }
                 const remotePlugins = await this.getRemotePluginDescriptions();
+                const localPluginsFromDisk = await this.loadPluginsFromLocalCache();
                 const differenceBetweenRemoteAndLocal: Array<PluginDescription> = _.difference(remotePlugins, Array.from(await this.localPluginDescriptionCache.values()));
                 if (differenceBetweenRemoteAndLocal.length) {
                     differenceBetweenRemoteAndLocal.forEach(async plugin => {
@@ -84,7 +86,7 @@ export default class Plugins {
                                     console.error(err)
                                 } else {
                                     console.info(`Download ${author} ${system} ${version} finished`);
-                                    this.unpackArchive(new PluginDescription(author, system, version));
+                                    this.unpackArchive(targetFileName);
                                 }
                             });
                         } catch (e) {
@@ -97,45 +99,75 @@ export default class Plugins {
         }));
     }
 
-    private async unpackArchive(pluginId: PluginDescription): Promise<any> {
-        const encodedArchiveId = this.getEncodedPluginFilename(pluginId);
-        const archivePath = path.resolve(path.join(this.pluginDir, `${encodedArchiveId}.jar`));
-        console.log(`Unpacking archive for ${pluginId.author}-${pluginId.system}-${pluginId.version} at ${archivePath}`);
-        return new Promise((resolve, reject) => {
-            fs.mkdir(this.appDataDir, '0777', (err) => {
+    private async ensureDirectoryExists(directoryPath: string) {
+        return new Promise(((resolve, reject) => {
+            fs.mkdir(directoryPath, {
+                recursive: true,
+                mode: 0o777
+            }, (err => {
                 if (err && err.code !== 'EEXIST') {
-                    return reject(err);
+                    return reject(err)
                 }
-                const archive = new StreamZip({
-                    file: archivePath,
-                    storeEntries: true
-                });
-                archive.on('ready', () => {
-                    const unpackDir = path.join(this.appDataDir, encodedArchiveId);
-                    console.log(`Begin unpack to ${unpackDir} ${archive.entriesCount}`);
-                    fs.mkdir(unpackDir, function (err) {
-                        // If the directory already exists, we don't care, that's normal.
-                        if (err && err.code !== 'EEXIST') {
+                resolve();
+            }))
+        }));
+    }
+
+    private async unpackArchive(archivePath: string): Promise<any> {
+        console.log(`Unpacking archive at ${archivePath}`);
+        return new Promise(async (resolve, reject) => {
+            await this.ensureDirectoryExists(this.appDataDir);
+            const archive = new StreamZip({
+                file: archivePath,
+                storeEntries: true
+            });
+            archive.on('ready', async () => {
+                const pluginDescription = (await this.extractPluginDescriptionFromArchive(archive) as any).description;
+                const unpackDir = path.join(this.appDataDir, `${pluginDescription.creator}-${pluginDescription.game}-${pluginDescription.version}`);
+                console.log(`Begin unpack to ${unpackDir} ${archive.entriesCount}`);
+                await this.ensureDirectoryExists(unpackDir);
+                archive.extract(null, unpackDir,
+                    (err: any, extractedCount: number) => {
+                        if (err) {
                             return reject(err);
                         }
-                        archive.extract(null, unpackDir,
-                            (err: any, extractedCount: number) => {
-                                if (err) {
-                                    return reject(err);
-                                }
-                                archive.close();
-                                console.log(`Unpack complete: ${extractedCount} entries`);
-                                resolve();
-                            });
+                        archive.close();
+                        console.log(`Unpack complete: ${extractedCount} entries`);
+                        fs.readFile(path.resolve(unpackDir, "plugin.json"), async (err, fileContent) => {
+                            if (err) {
+                                console.error(err);
+                                return resolve();
+                            }
+                            console.log(`Loaded plugin.json from ${unpackDir}`);
+                            return resolve((fileContent.toJSON()));
+                        });
                     });
-                });
-
-            })
+            });
         });
     }
 
     public async getPluginResource(plugin: PluginDescription, resourcePath: string) {
         return path.resolve(path.join(this.appDataDir, this.getEncodedPluginFilename(plugin), resourcePath));
+    }
+
+    private async loadPluginsFromLocalCache() {
+        return new Promise((resolveAll, rejectAll) => {
+            fs.readdir(this.pluginDir, async (err, files) => {
+                if (err) {
+                    return rejectAll(err);
+                }
+                const resolvedFiles = await Promise.all(files.map(file => {
+                    const loadedPluginDescription = this.unpackArchive(path.resolve(path.join(this.pluginDir, file)));
+                }));
+            });
+        })
+    }
+
+    private async extractPluginDescriptionFromArchive(archive: any) {
+        return new Promise((resolve, reject) => {
+            const dataBuffer = archive.entryDataSync("plugin.json");
+            return resolve(JSON.parse(dataBuffer.toString()));
+        });
     }
 
     public async getPluginConfiguration(plugin: PluginDescription) {
