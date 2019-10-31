@@ -63,7 +63,7 @@ describe("Plugins", function () {
             expect(downloadClient.get).toHaveBeenCalledTimes(1);
         });
         it("can download remote plugins", async function(){
-            await expect(instance.updateLocalPluginCache()).resolves.toEqual([{
+            await expect(instance.updateLocalPluginCacheFromRemote()).resolves.toEqual([{
                 author: "test",
                 system: "test",
                 version: "1.0.0"

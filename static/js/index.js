@@ -2,7 +2,9 @@ function hideList() {
     availablePlugins.hide();
 }
 window.bridge.on("plugin-list", (event, list) => {
+    $("#spinner").show();
     const availablePlugins = $("#available-plugins");
+    availablePlugins.empty();
     list.forEach(ap => {
         console.log(ap);
         const newElement = $("<li>");

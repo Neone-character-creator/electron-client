@@ -1,23 +1,23 @@
+import _ from "lodash";
+
 export default class PluginDescription {
-    _author:string;
-    _system:string;
-    _version:string;
+    readonly author:string;
+    readonly system:string;
+    readonly version:string;
 
     constructor(author: string, system: string, version: string) {
-        this._author = author;
-        this._system = system;
-        this._version = version;
+        if(_.isNil(author)) {
+            throw new Error("Author cannot be null or undefined");
+        }
+        if(_.isNil(system)) {
+            throw new Error("System cannot be null or undefined");
+        }
+        if(_.isNil(version)) {
+            throw new Error("Version cannot be null or undefined");
+        }
+        this.author = author;
+        this.system = system;
+        this.version = version;
     }
 
-    get author(){
-        return this._author;
-    }
-
-    get system(){
-        return this._system;
-    }
-
-    get version(){
-        return this._version;
-    }
 }

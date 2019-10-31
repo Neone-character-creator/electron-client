@@ -5,6 +5,7 @@ const loadConfig = require("./loadConfig");
 const config = loadConfig(process.env.NODE_ENV);
 const axios = require("axios");
 const Plugins = require("./plugins").default;
+const PluginEventEmitter = require("./plugins/PluginEventEmitter").default;
 const url = require("url");
 const Store = require("electron-store");
 const GoogleOAuth2 = require("@getstation/electron-google-oauth2").default;
@@ -72,9 +73,14 @@ const createWindow = () => {
         // when you should delete the corresponding element.
         mainWindow = null;
     });
+    plugins.on(PluginEventEmitter.Events.PLUGIN_LOAD, list =>{
+        console.log("after plugin load", list);
+        mainWindow.webContents.send("plugin-list", list);
+    });
     ipcMain.on("plugin-list", async () => {
-        let remotePlugins = await plugins.getRemotePluginDescriptions();
-        mainWindow.webContents.send("plugin-list", remotePlugins);
+        let retrievedPlugins = await plugins.getLocalPluginDescriptions();
+        console.log("after plugin request", retrievedPlugins);
+        mainWindow.webContents.send("plugin-list", retrievedPlugins);
     });
 
     ipcMain.on("load-plugin", async (event, plugin) => {
@@ -149,4 +155,4 @@ app.on('activate', () => {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
-plugins.updateLocalPluginCache();
+plugins.updateLocalPluginCacheFromRemote();
