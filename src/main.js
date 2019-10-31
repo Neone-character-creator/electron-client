@@ -1,4 +1,5 @@
 const {app, BrowserWindow, ipcMain, protocol} = require('electron');
+const _ = require("lodash");
 const path = require("path");
 const loadConfig = require("./loadConfig");
 const config = loadConfig(process.env.NODE_ENV);
@@ -7,10 +8,15 @@ const Plugins = require("./plugins").default;
 const url = require("url");
 const Store = require("electron-store");
 const GoogleOAuth2 = require("@getstation/electron-google-oauth2").default;
+
 const googleOauthClient = new GoogleOAuth2(
-    config.auth.google.clientId,
-    config.auth.google.clientSecret,
-    []
+    config.services.auth.google.clientId,
+    config.services.auth.google.clientSecret,
+    ["https://www.googleapis.com/auth/userinfo.profile"],
+    {
+        successRedirectURL: "https://google.com",
+        refocusAfterSuccess: true
+    }
 );
 
 const Data = require("./data").default;
@@ -27,6 +33,8 @@ if (require('electron-squirrel-startup')) { // eslint-disable-line global-requir
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
 
+let googleAuthToken;
+
 const createWindow = () => {
     let activePlugin;
     // Create the browser window.
@@ -38,6 +46,13 @@ const createWindow = () => {
         }
     });
 
+    function notifyOfAuthStatusChange(newStatus) {
+        if (!_.isBoolean(newStatus)) {
+            throw new Error("Must be a boolean.");
+        }
+        mainWindow.webContents.send("get-is-authenticated-status", newStatus);
+    }
+
     // and load the index.html of the app.
     mainWindow.loadURL(`file://${__dirname}/../static/index.html`);
 
@@ -46,8 +61,8 @@ const createWindow = () => {
 
     console.log("Create window");
 
-    ipcMain.on("rendered", () => {
-        console.log("Rendered");
+    mainWindow.webContents.on("dom-ready", function () {
+        mainWindow.webContents.send("get-enabled-features", _.get(config, "features", {}));
     });
 
     // Emitted when the window is closed.
@@ -97,13 +112,14 @@ const createWindow = () => {
     });
 
     ipcMain.on("start-login", async (e, provider)=>{
-        googleOauthClient.openAuthWindowAndGetTokens().then(token =>{
-            mainWindow.webContents.send("get-is-authenticated-status", true);
-            console.log(token);
+        googleOauthClient.openAuthWindowAndGetTokens().then(async token =>{
+            googleAuthToken = token;
+            notifyOfAuthStatusChange(true);
         });
     });
     ipcMain.on("start-logout", async e => {
-        mainWindow.webContents.send("get-is-authenticated-status", true);
+        googleAuthToken = null;
+        notifyOfAuthStatusChange(false);
     });
 };
 

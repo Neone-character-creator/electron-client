@@ -1,3 +1,15 @@
+window.bridge.on("get-enabled-features", function(event, features){
+    const featureToggledElements = $("[data-feature]");
+    $.each(featureToggledElements, function(index, value) {
+        const wrapped = $(value);
+        const featureDataValue = wrapped.data("feature");
+        if (features[featureDataValue]) {
+            wrapped.show();
+            wrapped.removeClass("hidden");
+        }
+    });
+});
+
 function getContentIframeWindow() {
     const contentIframe = $("#content");
     const contentDocument = contentIframe[0].contentWindow;

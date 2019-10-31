@@ -79,8 +79,6 @@ Some text
                 </li>
                 <li>
                     <button class="btn btn-default" type="button" id="open-character"
-                            th:disabled="${loadEnabled != true}"
-                            th:attr="data-url=${'/games/' + author + '/' + game + '/' + version + '/characters/'},
                             data-toggle='modal',
                             data-target='#loading-modal'">
                         <span class="glyphicon glyphicon-floppy-open"/>
@@ -106,12 +104,12 @@ Some text
             </ul>
         </div>
     </nav>
-    <div class="row text-center" id="signin-warning">
+    <div class="row text-center hidden" id="signin-warning" data-feature="CLOUD_FEATURES">
         <button class="btn btn-link login-menu" type="button" id="login">
-            You're not logged in. Login here to save, load and delete characters.
+            You're not logged in. Login here to enable cloud saves.
         </button>
     </div>
-    <div class="row text-center" id="signout">
+    <div class="row text-center hidden" id="signout" data-feature="CLOUD_FEATURES">
         <button class="btn btn-link logout" type="button" id="logout">
             Click here to logout.
         </button>
@@ -123,4 +121,5 @@ Some text
 </body>
 <script src="../js/character-page.js" type="text/javascript"></script>
 <script src="../js/character-list.js" type="text/javascript"></script>
+<script src="../js/login.js" type="text/javascript"></script>
 </html>
