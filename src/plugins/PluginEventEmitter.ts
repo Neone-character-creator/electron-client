@@ -3,7 +3,8 @@ import Plugins from "./index";
 
 export default class PluginEventEmitter implements EventEmitter{
     public static readonly Events = {
-        PLUGIN_LOAD: "plugin-load"
+        PLUGIN_LOAD: "plugin-load",
+        REMOTE_PLUGIN_LOAD_FAILED: "plugin-load-failed"
     };
     private _listeners:any;
     private plugins: Plugins;
@@ -20,7 +21,9 @@ export default class PluginEventEmitter implements EventEmitter{
     addListener(event: string | symbol, listener: (...args: any[]) => void): this {
         this._listeners[event] = this._listeners[event] || [];
         (this._listeners[event] as Array<any>).push(listener);
-        console.log(`Publishing to already registered listeners for event ${String(event)}`);
+        if(this._listeners[event]) {
+            console.info(`Publishing to already registered listeners for event ${String(event)}`);
+        }
         switch (event) {
             case PluginEventEmitter.Events.PLUGIN_LOAD:
                 this.plugins.getLocalPluginDescriptions().then(pluginList => {

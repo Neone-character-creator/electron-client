@@ -41,19 +41,15 @@ export default class Plugins implements EventEmitter {
      */
     async getRemotePluginDescriptions(): Promise<Array<any>> {
         console.info("Getting remote plugin descriptions");
-        try {
-            const lastUpdated = (this.remotePluginDescriptionCache as any).lastUpdateTime;
-            if (!lastUpdated || (lastUpdated + Plugins.CACHE_DIRTY_SECONDS) < Date.now()) {
-                const remote: Array<any> = (await (this.downloadClient.get(this.defaultRemoteUrl) as any)).data as Array<any>;
-                remote.forEach(remotePlugin => {
-                    this.remotePluginDescriptionCache.add(new PluginDescription(remotePlugin.author, remotePlugin.system, remotePlugin.version));
-                });
-                (this.remotePluginDescriptionCache as any).lastUpdateTime = Date.now();
-            }
-            return Array.from(this.remotePluginDescriptionCache.values());
-        } catch (e) {
-            throw e;
+        const lastUpdated = (this.remotePluginDescriptionCache as any).lastUpdateTime;
+        if (!lastUpdated || (lastUpdated + Plugins.CACHE_DIRTY_SECONDS) < Date.now()) {
+            const remote: Array<any> = (await (this.downloadClient.get(this.defaultRemoteUrl) as any)).data as Array<any>;
+            remote.forEach(remotePlugin => {
+                this.remotePluginDescriptionCache.add(new PluginDescription(remotePlugin.author, remotePlugin.system, remotePlugin.version));
+            });
+            (this.remotePluginDescriptionCache as any).lastUpdateTime = Date.now();
         }
+        return Array.from(this.remotePluginDescriptionCache.values());
     }
 
     /**
@@ -63,54 +59,57 @@ export default class Plugins implements EventEmitter {
      */
     async updateLocalPluginCacheFromRemote(): Promise<Array<any>> {
         console.info("Refreshing plugin cache from remote at " + this.defaultRemoteUrl);
-        return new Promise(((resolve, reject) => {
-            fs.mkdir(this.pluginDir, {
-                recursive: true
-            }, async (err) => {
-                if (err) {
-                    return reject(err);
-                }
-                const remotePlugins = await this.getRemotePluginDescriptions();
-                const localPluginsFromDisk = Array.from(await this.loadPluginsFromLocalCache());
-                localPluginsFromDisk.forEach(localPlugin => {
-                    console.log(localPlugin);
-                    this.localPluginDescriptionCache.set(localPlugin.description, localPlugin.location);
-                });
-                console.info(`Remote plugins: ${remotePlugins.map(rp => JSON.stringify(rp))}`);
-                console.info(`Local plugins: ${localPluginsFromDisk.map(lp => JSON.stringify(lp.description))}`);
-                const differenceBetweenRemoteAndLocal: Array<PluginDescription> = _.differenceWith(remotePlugins, localPluginsFromDisk.map(lp => lp.description), _.isEqual);
-                if (differenceBetweenRemoteAndLocal.length) {
-                    console.debug(`${differenceBetweenRemoteAndLocal.length} remote plugin(s) were not found locally.`);
-                    differenceBetweenRemoteAndLocal.forEach(async plugin => {
-                        try {
-                            const author = plugin.author;
-                            const system = plugin.system;
-                            const version = plugin.version;
-                            console.info(`Downloading remote plugin ${author} ${system} ${version}`);
-                            const response = await this.downloadClient.get(this.defaultRemoteUrl + `${author}/${system}/${version}/`, {
-                                responseType: 'arraybuffer'
-                            });
-                            const targetFileName = path.resolve(this.pluginDir, encodeURIComponent(`${author}-${system}-${version}.jar`));
-                            const dataBuffer = Buffer.from(response.data);
-                            fs.writeFile(targetFileName, dataBuffer, err => {
-                                if (err) {
-                                    console.error(err)
-                                } else {
-                                    console.info(`Download ${author} ${system} ${version} finished`);
-                                    this.unpackArchive(targetFileName);
-                                }
-                            });
-                        } catch (e) {
-                            console.error("Failed to refresh plugin cache", e);
-                        }
-                    })
-                }
-                const localPlugins = await this.getLocalPluginDescriptions();
-                console.log("local plugins before emit", localPlugins);
-                this.emit(PluginEventEmitter.Events.PLUGIN_LOAD, await this.getLocalPluginDescriptions());
-                return resolve(differenceBetweenRemoteAndLocal);
-            })
-        }));
+        console.info("Initializing local plugins from cache");
+        await this.ensureDirectoryExists(this.pluginDir);
+        const localPluginsFromDisk = Array.from(await this.loadPluginsFromLocalCache());
+        localPluginsFromDisk.forEach(localPlugin => {
+            this.localPluginDescriptionCache.set(localPlugin.description, localPlugin.location);
+        });
+        try {
+            console.info("Downloading remote plugin list");
+            const remotePlugins = await this.getRemotePluginDescriptions();
+            console.info(`Remote plugins: ${remotePlugins.map(rp => JSON.stringify(rp))}`);
+            console.info(`Local plugins: ${localPluginsFromDisk.map(lp => JSON.stringify(lp.description))}`);
+            const differenceBetweenRemoteAndLocal: Array<PluginDescription> = _.differenceWith(remotePlugins, localPluginsFromDisk.map(lp => lp.description), _.isEqual);
+            if (differenceBetweenRemoteAndLocal.length) {
+                console.debug(`${differenceBetweenRemoteAndLocal.length} remote plugin(s) were not found locally.`);
+                differenceBetweenRemoteAndLocal.forEach(async plugin => {
+                    try {
+                        await this.downloadAndUnpackRemotePlugin(plugin);
+                    } catch (e) {
+                        console.error(e);
+                    }
+                })
+            }
+            const localPlugins = await this.getLocalPluginDescriptions();
+
+            this.emit(PluginEventEmitter.Events.PLUGIN_LOAD, localPlugins);
+            return differenceBetweenRemoteAndLocal;
+        } catch (e) {
+            this.emit(PluginEventEmitter.Events.REMOTE_PLUGIN_LOAD_FAILED, "Something went wrong trying to download the remote plugins");
+            this.emit(PluginEventEmitter.Events.PLUGIN_LOAD, await this.getLocalPluginDescriptions());
+            return localPluginsFromDisk;
+        }
+    }
+
+    private async downloadAndUnpackRemotePlugin(plugin: PluginDescription) {
+        const author = plugin.author;
+        const system = plugin.system;
+        const version = plugin.version;
+        console.info(`Downloading remote plugin ${author} ${system} ${version}`);
+        const response = await this.downloadClient.get(this.defaultRemoteUrl + `${author}/${system}/${version}/`, {
+            responseType: 'arraybuffer'
+        });
+        const targetFileName = path.resolve(this.pluginDir, encodeURIComponent(`${author}-${system}-${version}.jar`));
+        const dataBuffer = Buffer.from(response.data);
+        fs.writeFile(targetFileName, dataBuffer, err => {
+            if (err) {
+                console.error(err)
+            } else {
+                console.info(`Download ${author} ${system} ${version} finished`);
+                this.unpackArchive(targetFileName);
+            }
+        });
     }
 
     private async ensureDirectoryExists(directoryPath: string) {
@@ -136,8 +135,10 @@ export default class Plugins implements EventEmitter {
                 storeEntries: true
             });
             archive.on('ready', async () => {
-                const pluginDescription:PluginDescription = (await this.extractPluginDescriptionFromArchive(archive) as any);
-                const unpackDir = path.join(this.appDataDir, `${pluginDescription.author}-${pluginDescription.system}-${pluginDescription.version}`);
+                const pluginDescription: PluginDescription = (await this.extractPluginDescriptionFromArchive(archive) as any);
+                const encodedTargetDir = path.resolve(this.appDataDir, `${pluginDescription.author}-${pluginDescription.system}-${pluginDescription.version}`)
+                    .replace(/ /g, "_");
+                const unpackDir = encodedTargetDir;
                 console.log(`Begin unpack to ${unpackDir} ${archive.entriesCount}`);
                 await this.ensureDirectoryExists(unpackDir);
                 archive.extract(null, unpackDir,
@@ -160,14 +161,23 @@ export default class Plugins implements EventEmitter {
         });
     }
 
+    private static readonly SCRIPT_RESOURCE_PATTERN = path.sep == "/" ? new RegExp('/templates/(scripts/.*)') :
+        new RegExp('\\\\templates\\\\(scripts\\\\.*)');
+    private static readonly TEMPLATE_RESOURCE_PATTERN = path.sep == "/" ? new RegExp('/templates/(scripts/.*)') :
+        new RegExp('\\\\templates\\\\((?!scripts\\\\).*)');
+
     public async getPluginResource(plugin: PluginDescription, resourcePath: string) {
-        return path.resolve(path.join(this.appDataDir, this.getEncodedPluginFilename(plugin), resourcePath));
+        const pluginRootPath = path.join(this.appDataDir, this.getEncodedPluginFilename(plugin));
+        console.log("plugin root", pluginRootPath);
+        const finalResourcePath = path.join(pluginRootPath, resourcePath).replace(/ /g, "_");
+        console.log("plugin resource full path", finalResourcePath);
+        return finalResourcePath;
     }
 
-    private async loadPluginsFromLocalCache(): Promise<Array<{description: PluginDescription, location: string}>> {
+    private async loadPluginsFromLocalCache(): Promise<Array<{ description: PluginDescription, location: string }>> {
         console.info(`Loading plugins on local disk`);
-        const files:Array<string> = await new Promise((resolve, reject) => {
-            fs.readdir(this.pluginDir, promisify((err:any, files:any[]) => {
+        const files: Array<string> = await new Promise((resolve, reject) => {
+            fs.readdir(this.pluginDir, promisify((err: any, files: any[]) => {
                 if (err) {
                     return reject(err);
                 }
@@ -180,12 +190,13 @@ export default class Plugins implements EventEmitter {
             try {
                 return {
                     location: file,
-                    description: await this.unpackArchive(path.resolve(path.join(this.pluginDir, file)))};
+                    description: await this.unpackArchive(path.resolve(path.join(this.pluginDir, file)))
+                };
             } catch (e) {
                 console.error(e);
                 return undefined;
             }
-        }))).filter(x => x) as Array<{description: PluginDescription, location: string}>;
+        }))).filter(x => x) as Array<{ description: PluginDescription, location: string }>;
     }
 
     private async extractPluginDescriptionFromArchive(archive: any) {
@@ -199,7 +210,7 @@ export default class Plugins implements EventEmitter {
 
     public async getPluginConfiguration(plugin: PluginDescription) {
         return new Promise(((resolve, reject) => {
-            const configurationPath = path.join(this.appDataDir, this.getEncodedPluginFilename(plugin), "plugin.json");
+            const configurationPath = path.join(this.appDataDir, this.getEncodedPluginFilename(plugin), "plugin.json").replace(/ /g, "_");
             fs.readFile(configurationPath, {
                 encoding: "UTF-8"
             }, function (err, data) {
@@ -215,7 +226,7 @@ export default class Plugins implements EventEmitter {
         if (!plugin) {
             throw new Error("plugin cannot be null or undefined");
         }
-        return encodeURIComponent(`${plugin.author}-${plugin.system}-${plugin.version}`);
+        return `${plugin.author}-${plugin.system}-${plugin.version}`;
     }
 
     addListener(event: string | symbol, listener: (...args: any[]) => void): this {
