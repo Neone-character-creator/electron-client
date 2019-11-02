@@ -157,8 +157,8 @@ app.on('activate', () => {
     }
 });
 
-const pluginResourceRequestPattern = path.sep === "\\" ? /\\plugins\\(.+?)\\(.+?)\\(.+?)\\(.*)/ :
-    /\/plugins\/(.+?)\/(.+?)\/(.+?)\/(.*)/;
+const pluginResourceRequestPattern = path.sep === "\\" ? /\\games\\(.+?)\\(.+?)\\(.+?)\\(.*)/ :
+    /\/games\/(.+?)\/(.+?)\/(.+?)\/(.*)/;
 app.on("ready", ()=>{
     protocol.interceptFileProtocol("file", async (request, cb)=>{
         const fileUrl = path.resolve(url.fileURLToPath(request.url)).replace(/ /g, "_");
