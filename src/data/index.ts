@@ -1,5 +1,6 @@
 import Store from "electron-store";
 import { ObjectId } from "mongodb";
+import PluginDescription from "../plugins/PluginDescription";
 
 export default class Data {
     private store:Store;
@@ -9,23 +10,23 @@ export default class Data {
         this.store = backingStore;
     }
 
-    getAllCharacters(): Array<any>{
+    getAllCharacters(forPlugin: PluginDescription): Array<any>{
         const characterData = this.store.get("characters");
-        return Object.keys(characterData).map(id => characterData[id]);
+        return Object.keys(characterData[forPlugin.toString()]).map(id => characterData[id]);
     }
 
-    getCharacter(id: string): any {
-        const existingCharacter = this.store.get(Data.CHARACTER_KEY);
+    getCharacter(forPlugin: PluginDescription, id: string): any {
+        const existingCharacter = this.store.get(Data.CHARACTER_KEY)[forPlugin.toString()];
         return existingCharacter[id];
     }
     
-    saveCharacter(character: any) {
+    saveCharacter(forPlugin: PluginDescription, character: any) {
         character = {...character};
         const existingCharacters = this.store.get("characters");
         console.log(character.id ? "data has existing id" : "data has no existing id");
         let id = character.id || new ObjectId();
         character.id = id.toString();
-        existingCharacters[id] = character;
+        existingCharacters[forPlugin.toString()][id] = character;
         this.store.set("characters", existingCharacters);
         return character;
     }

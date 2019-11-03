@@ -161,11 +161,6 @@ export default class Plugins implements EventEmitter {
         });
     }
 
-    private static readonly SCRIPT_RESOURCE_PATTERN = path.sep == "/" ? new RegExp('/templates/(scripts/.*)') :
-        new RegExp('\\\\templates\\\\(scripts\\\\.*)');
-    private static readonly TEMPLATE_RESOURCE_PATTERN = path.sep == "/" ? new RegExp('/templates/(scripts/.*)') :
-        new RegExp('\\\\templates\\\\((?!scripts\\\\).*)');
-
     public async getPluginResource(plugin: PluginDescription, resourcePath: string) {
         const pluginRootPath = path.join(this.appDataDir, this.getEncodedPluginFilename(plugin));
         console.log("plugin root", pluginRootPath);
