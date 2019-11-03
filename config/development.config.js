@@ -1,6 +1,6 @@
 module.exports = {
     features: {
-        CLOUD_FEATURES: true
+        CLOUD_FEATURES: false
     },
     api: {
         url: 'http://localhost:8080',
@@ -13,7 +13,6 @@ module.exports = {
         auth: {
             google: {
                 clientId: "275558456725-6jus1cc4jisj4t1md64oog6q47den271.apps.googleusercontent.com",
-                clientSecret: "FiF_ZG4erQZwJZQfjRQ-zXRK",
                 apiUrl: "https://people.googleapis.com/v1/people/me"
             }
         },
