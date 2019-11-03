@@ -1,6 +1,3 @@
-function hideList() {
-    availablePlugins.hide();
-}
 window.bridge.on("plugin-list", (event, list) => {
     $("#spinner").show();
     const availablePlugins = $("#available-plugins");
@@ -16,6 +13,11 @@ window.bridge.on("plugin-list", (event, list) => {
         availablePlugins.append(newElement);
     });
     $("#spinner").hide();
+});
+window.bridge.on("plugin-load-failed", (event, message) => {
+    $("#error-content").empty();
+    $("#error-content").text(message);
+    $("#error-modal").modal("show");
 });
 $(document).ready(function(){
     window.bridge.send("plugin-list");
