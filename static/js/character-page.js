@@ -16,6 +16,13 @@ function getContentIframeWindow() {
     return contentDocument;
 }
 
+function fitIframe(){
+    var precedingHeight = $("#navbar").outerHeight(true)
+        + $("#signin-warning").outerHeight(true)
+        + $("#signout").outerHeight(true);
+    $("#content").height(($(window).height() - precedingHeight) * .95)
+}
+
 function newCharacter() {
     window.bridge.send("create-new-character");
 }
@@ -83,24 +90,13 @@ $().ready(function () {
                 });
                 row.append(loadButton);
 
-                // var deleteButton = $("<button>", {
-                //     "class": "btn btn-warning delete-character",
-                //     "data-url": url + id
-                // }).text("Delete")
-                //     .click(function () {
-                //         $.ajax({
-                //             url: deleteButton.attr("url"),
-                //             type: "GET",
-                //             headers: headers,
-                //             accept: "application/json;charset=UTF-8"
-                //         })
-                //     });
-                // row.append(deleteButton);
-
                 $("#modal-content").append(row)
             })
         } else {
             $("#modal-content").text("No characters loaded");
         }
     });
+    fitIframe();
 });
+
+$(window).resize(fitIframe);
